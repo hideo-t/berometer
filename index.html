@@ -164,7 +164,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;heigh
   <div class="app-desc">マイクに向かって<em>声や息</em>を入れるだけ。<br>あなたの<em>酔い度</em>を暴きます。</div>
   <button class="big-btn" onclick="show('s-mode')">🌬 測定開始</button>
   <div class="privacy-note">🔒 音声は保存しません（演出用）</div>
-  <div class="ft" style="margin-top:24px">Presented by 世界王</div>
+  <div class="ft" style="margin-top:24px">
+    プレミアムモード：¥300（税込・買い切り）<br>
+    決済：Stripe（カード / Apple Pay / Google Pay / PayPay）<br>
+    <a href="https://hideo-t.github.io/negaibi/#tokushoho" style="color:var(--gold2);font-size:9px">特定商取引法に基づく表記</a><br>
+    Presented by 世界王 / <a href="https://hideo-t.github.io/negaibi/" style="color:var(--gold2);font-size:9px">願い灯</a>
+  </div>
 </div>
 
 <!-- MODE SELECT -->
@@ -201,6 +206,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;heigh
   </div>
   <div class="manual-box" style="margin-top:16px">
     <div class="manual-link" onclick="selectMode('manual')">マイクが使えない人はこちら</div>
+    <div style="margin-top:14px;font-size:10px;color:var(--grey);line-height:1.8;opacity:0.6">
+      👑 プレミアムモード：¥300（税込・買い切り）<br>
+      <a href="https://hideo-t.github.io/negaibi/#tokushoho" style="color:var(--gold2)">特定商取引法に基づく表記</a>
+    </div>
   </div>
 </div>
 
@@ -410,20 +419,30 @@ function show(id){
 function rp(a){return a[Math.floor(Math.random()*a.length)]}
 
 // === MODE SELECT ===
-function selectMode(m){
+async function selectMode(m){
   if(m==='manual'){mode='long';show('s-manual');return}
   // Check premium
   if((m==='sing'||m==='long') && !isPaid()){
-    // Redirect to Stripe
     window.location.href = PAYMENT_URL;
     return;
   }
   mode=m;
   measureDuration=m==='sing'?10:m==='sexy'?3:20;
-  beginCountdown();
+  // ★ iPhone Safari対策: タップ直後にマイク許可を取る
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=0.3;
+    src.connect(analyser);
+    beginCountdown(true);
+  }catch(e){
+    // マイク取れなかった → 手動モード
+    mode='long';show('s-manual');
+  }
 }
 
-function beginCountdown(){
+function beginCountdown(micReady){
   show('s-cd');
   const subs={sing:'歌の準備はいいか…？',sexy:'心の準備はいいか…？',long:'深呼吸しておけ…'};
   document.getElementById('cdSub').textContent=subs[mode]||'準備して…';
@@ -433,11 +452,11 @@ function beginCountdown(){
     if(c>0){el.className='cd-num';el.textContent=c;void el.offsetWidth;el.classList.add('pop')}
     else{clearInterval(iv);const starts={sing:'🎤',sexy:'💋',long:'💨'};
       el.className='cd-num';el.textContent=starts[mode]||'💨';void el.offsetWidth;el.classList.add('pop');
-      setTimeout(()=>startMeasure(),400)}
+      setTimeout(()=>startMeasure(micReady),400)}
   },900);
 }
 
-async function startMeasure(){
+function startMeasure(micReady){
   canvas=document.getElementById('noiseCanvas');
   const r=canvas.getBoundingClientRect();canvas.width=r.width*2;canvas.height=r.height*2;
   ctx=canvas.getContext('2d');cW=canvas.width;cH=canvas.height;ctx.scale(2,2);
@@ -448,13 +467,12 @@ async function startMeasure(){
   document.getElementById('gaugeNum').textContent='0';
   document.getElementById('gaugeFill').style.width='0%';
   show('s-measure');
-  try{
-    micStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-    const src=audioCtx.createMediaStreamSource(micStream);
-    analyser=audioCtx.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=0.3;
-    src.connect(analyser);volumes=[];measuring=true;startTime=performance.now();mLoop();
-  }catch(e){mode='long';show('s-manual')}
+  if(micReady && analyser){
+    // マイクは既に取得済み → すぐ測定開始
+    volumes=[];measuring=true;startTime=performance.now();mLoop();
+  }else{
+    mode='long';show('s-manual');
+  }
 }
 
 function mLoop(){
@@ -570,7 +588,7 @@ function renderResult(score){
     </div>
     <div class="king-box fi d7 ${showK?'show':''}"><div class="king-label">世界王の判定</div><div class="king-text">「${kw}」</div></div>
     <button class="retry-btn fi d8" onclick="retry()">🔄 もう一回測る</button>
-    <div class="ft fi d9">Presented by 世界王<br>「すべての人は、自分の夜の王である。」</div>
+    <div class="ft fi d9">Presented by 世界王 / <a href="https://hideo-t.github.io/negaibi/" style="color:var(--gold2)">願い灯</a><br><a href="https://hideo-t.github.io/negaibi/#tokushoho" style="color:var(--gold2)">特定商取引法に基づく表記</a></div>
   `;
   flashScreen();fireConfetti();show('s-result');
   setTimeout(()=>{document.getElementById('s-result').classList.add('shaking');setTimeout(()=>document.getElementById('s-result').classList.remove('shaking'),600)},100);
