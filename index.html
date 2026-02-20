@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ベロメーター by 世界王</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700;900&family=Shippori+Mincho:wght@400;600;800&family=Noto+Sans+JP:wght@300;500;700;900&display=swap');
+
+:root{
+  --bg:#050508;--bg2:#0a0a12;
+  --gold:#c9a84c;--gold2:#8a6e30;--gold3:#e8c960;
+  --wht:#e0dcd0;--grey:#444460;
+  --red:#d03030;--red2:#801818;--red3:#ff4040;
+  --green:#30a050;--green2:#186028;
+  --cyan:#40c0d0;--yellow:#e0c030;--orange:#e08030;--pink:#d060a0;
+  --purple:#8040c0;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--wht);font-family:'Noto Sans JP',sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* GRAIN */
+body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;mix-blend-mode:overlay}
+
+/* SCREENS */
+.sc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;opacity:0;transform:scale(0.97);transition:opacity 0.7s,transform 0.7s;pointer-events:none;z-index:1}
+.sc.on{opacity:1;transform:scale(1);pointer-events:auto}
+.sc.scroll{overflow-y:auto;justify-content:flex-start;padding-top:max(24px,3vh);padding-bottom:60px}
+
+/* INTRO */
+.intro-icon{font-size:72px;margin-bottom:8px;animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-12px) scale(1.05)}}
+
+.app-title{font-family:'Zen Old Mincho',serif;font-size:clamp(48px,12vw,72px);font-weight:900;background:linear-gradient(135deg,var(--gold3),var(--orange),var(--red3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;line-height:1.1;letter-spacing:0.05em}
+.app-sub{font-size:clamp(13px,3.2vw,16px);color:var(--grey);letter-spacing:0.2em;margin-top:4px}
+.app-desc{font-size:clamp(14px,3.5vw,17px);color:var(--wht);text-align:center;margin-top:20px;line-height:1.8;max-width:360px;opacity:0.7}
+.app-desc em{color:var(--gold3);font-style:normal;font-weight:700}
+
+.big-btn{margin-top:28px;width:min(320px,80vw);padding:20px 0;background:linear-gradient(135deg,var(--red2),var(--red));border:none;border-radius:8px;color:#fff;font-family:'Zen Old Mincho',serif;font-size:clamp(22px,5.5vw,28px);font-weight:700;letter-spacing:0.2em;cursor:pointer;transition:all 0.3s;box-shadow:0 4px 20px rgba(208,48,48,0.3)}
+.big-btn:active{transform:scale(0.96);box-shadow:0 2px 10px rgba(208,48,48,0.2)}
+
+.privacy-note{font-size:clamp(9px,2.3vw,11px);color:var(--grey);margin-top:16px;opacity:0.5;text-align:center}
+
+/* MEASURE */
+.measure-title{font-family:'Zen Old Mincho',serif;font-size:clamp(24px,6vw,32px);font-weight:700;margin-bottom:16px;text-align:center}
+.measure-inst{font-size:clamp(16px,4vw,20px);color:var(--gold);text-align:center;margin-bottom:20px;letter-spacing:0.1em}
+
+/* CANVAS */
+#noiseCanvas{width:min(380px,90vw);height:120px;border:1px solid rgba(201,168,76,0.15);border-radius:6px;background:var(--bg2);margin-bottom:16px}
+
+/* GAUGE BAR */
+.gauge-wrap{width:min(380px,90vw);height:40px;background:var(--bg2);border:1px solid rgba(201,168,76,0.15);border-radius:20px;overflow:hidden;position:relative;margin-bottom:12px}
+.gauge-fill{height:100%;border-radius:20px;transition:width 0.1s;position:relative;overflow:hidden}
+.gauge-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+.gauge-num{font-family:'Zen Old Mincho',serif;font-size:clamp(48px,12vw,72px);font-weight:900;text-align:center;margin-bottom:8px;transition:color 0.3s}
+
+.timer-text{font-size:clamp(14px,3.5vw,17px);color:var(--grey);text-align:center;margin-bottom:16px}
+
+.stop-btn{padding:14px 40px;background:rgba(100,100,120,0.2);border:1px solid var(--grey);border-radius:6px;color:var(--grey);font-size:clamp(16px,4vw,18px);cursor:pointer;transition:all 0.3s}
+.stop-btn:active{background:rgba(100,100,120,0.4)}
+
+/* MANUAL MODE */
+.manual-box{width:min(380px,90vw);text-align:center;margin-top:16px}
+.manual-link{font-size:clamp(12px,3vw,14px);color:var(--gold2);text-decoration:underline;cursor:pointer}
+.manual-slider-wrap{margin-top:12px;display:none}
+.manual-slider-wrap.show{display:block}
+.manual-label{font-size:clamp(14px,3.5vw,16px);color:var(--wht);margin-bottom:8px}
+input[type=range]{width:100%;height:40px;-webkit-appearance:none;background:transparent;margin-bottom:12px}
+input[type=range]::-webkit-slider-runnable-track{height:8px;background:linear-gradient(90deg,var(--green),var(--yellow),var(--orange),var(--red));border-radius:4px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;background:var(--gold);border-radius:50%;margin-top:-12px;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+.manual-go{padding:14px 40px;background:var(--red);border:none;border-radius:6px;color:#fff;font-size:clamp(18px,4.5vw,22px);font-weight:700;cursor:pointer;letter-spacing:0.1em}
+
+/* LOADING */
+.ld-icon{font-size:64px;animation:spin 1s linear infinite;margin-bottom:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ld-text{font-size:clamp(16px,4vw,20px);color:var(--gold2);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
+
+/* RESULT */
+.res-emoji{font-size:64px;margin-bottom:8px;animation:resB 2s ease-in-out infinite}
+@keyframes resB{0%,100%{transform:scale(1) rotate(0)}25%{transform:scale(1.1) rotate(-5deg)}75%{transform:scale(1.1) rotate(5deg)}}
+
+.res-level{font-family:'Zen Old Mincho',serif;font-size:clamp(36px,9vw,52px);font-weight:900;text-align:center;margin-bottom:4px}
+.res-label{font-size:clamp(20px,5vw,28px);font-weight:700;text-align:center;margin-bottom:16px;letter-spacing:0.15em}
+
+.res-num{font-family:'Zen Old Mincho',serif;font-size:clamp(80px,20vw,120px);font-weight:900;text-align:center;line-height:1}
+.res-unit{font-size:clamp(14px,3.5vw,18px);color:var(--grey);text-align:center;margin-bottom:20px}
+
+.res-status{width:min(380px,90vw);background:rgba(255,255,255,0.03);border:1px solid rgba(201,168,76,0.1);border-radius:6px;padding:16px 20px;margin-bottom:14px;text-align:center}
+.res-status-title{font-size:clamp(11px,2.8vw,13px);color:var(--gold);letter-spacing:0.3em;margin-bottom:8px}
+.res-status-text{font-size:clamp(16px,4vw,20px);line-height:1.9}
+
+.res-prophecy{width:min(380px,90vw);background:rgba(100,30,100,0.08);border:1px solid rgba(128,64,192,0.15);border-radius:6px;padding:16px 20px;margin-bottom:14px;text-align:center}
+.res-prophecy-title{font-size:clamp(11px,2.8vw,13px);color:var(--purple);letter-spacing:0.3em;margin-bottom:8px}
+.res-prophecy-text{font-size:clamp(15px,3.8vw,19px);color:rgba(200,180,220,0.85);line-height:1.8}
+
+/* SAKE RECS */
+.sake-box{width:min(380px,90vw);margin-bottom:14px}
+.sake-title{font-family:'Zen Old Mincho',serif;font-size:clamp(13px,3.2vw,15px);color:var(--gold);letter-spacing:0.15em;margin-bottom:10px}
+.sake-card{background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.1);border-radius:5px;padding:12px 14px;margin-bottom:8px}
+.sake-role{font-size:clamp(10px,2.5vw,12px);letter-spacing:0.2em;margin-bottom:4px;font-weight:700}
+.sake-role.brake{color:var(--cyan)}
+.sake-role.calm{color:var(--green)}
+.sake-role.yolo{color:var(--red3)}
+.sake-name{font-size:clamp(14px,3.5vw,17px);font-weight:700;margin-bottom:2px}
+.sake-note{font-size:clamp(10px,2.5vw,12px);color:var(--grey);line-height:1.5}
+
+/* KING */
+.king-box{width:min(380px,90vw);border-top:1px solid rgba(160,40,40,0.15);padding-top:12px;margin-bottom:14px;text-align:center;display:none}
+.king-box.show{display:block}
+.king-label{font-size:clamp(9px,2.3vw,11px);color:var(--red2);letter-spacing:0.3em;margin-bottom:4px}
+.king-text{font-family:'Zen Old Mincho',serif;font-size:clamp(14px,3.5vw,17px);color:var(--gold);line-height:1.8}
+
+.retry-btn{margin-top:8px;width:min(320px,80vw);padding:18px 0;background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(201,168,76,0.05));border:1px solid var(--gold2);border-radius:8px;color:var(--gold);font-family:'Zen Old Mincho',serif;font-size:clamp(18px,4.5vw,22px);letter-spacing:0.2em;cursor:pointer;transition:all 0.3s}
+.retry-btn:active{transform:scale(0.96)}
+
+.ft{margin-top:16px;text-align:center;opacity:0.2;font-size:9px;color:var(--grey);letter-spacing:0.1em;line-height:2}
+
+/* ANIMATIONS */
+.fi{animation:fu 0.8s ease both}
+@keyframes fu{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.d1{animation-delay:.1s;opacity:0}.d2{animation-delay:.25s;opacity:0}.d3{animation-delay:.4s;opacity:0}
+.d4{animation-delay:.55s;opacity:0}.d5{animation-delay:.7s;opacity:0}.d6{animation-delay:.85s;opacity:0}
+.d7{animation-delay:1s;opacity:0}.d8{animation-delay:1.15s;opacity:0}.d9{animation-delay:1.3s;opacity:0}
+.d10{animation-delay:1.45s;opacity:0}
+
+/* Level colors */
+.lv-sober{color:var(--cyan)}.lv-tipsy{color:var(--green)}.lv-happy{color:var(--yellow)}
+.lv-danger{color:var(--orange)}.lv-legend{color:var(--red3)}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="sc on" id="s-intro">
+  <div class="intro-icon">🍺</div>
+  <div class="app-title">ベロ<br>メーター</div>
+  <div class="app-sub">BERO METER</div>
+  <div class="app-desc">スマホに<em>2秒フーッ</em>と息を吹きかけるだけ。<br>あなたの<em>酔い度</em>を暴きます。</div>
+  <button class="big-btn" onclick="startMeasure()">🌬 測定開始</button>
+  <div class="privacy-note">🔒 音声は保存しません（演出用）</div>
+  <div class="ft" style="margin-top:24px">Presented by 世界王<br>「すべての人は、自分の夜の王である。」</div>
+</div>
+
+<!-- MEASURE -->
+<div class="sc" id="s-measure">
+  <div class="measure-title" id="mTitle">🌬 フーッと吹いて！</div>
+  <div class="measure-inst" id="mInst">スマホの下に向かって息を吹きかけてください</div>
+  <canvas id="noiseCanvas"></canvas>
+  <div class="gauge-num" id="gaugeNum">0</div>
+  <div class="gauge-wrap"><div class="gauge-fill" id="gaugeFill" style="width:0%;background:var(--cyan)"></div></div>
+  <div class="timer-text" id="timerText">残り 2.0 秒</div>
+  <button class="stop-btn" onclick="cancelMeasure()">キャンセル</button>
+  <div class="manual-box" id="manualBox">
+    <div class="manual-link" onclick="showManual()">マイクが使えない場合はこちら</div>
+    <div class="manual-slider-wrap" id="manualSlider">
+      <div class="manual-label">息の強さを選んでください</div>
+      <input type="range" min="0" max="100" value="50" id="manualRange" oninput="updateManualLabel()">
+      <div id="manualVal" style="color:var(--gold);font-size:18px;margin-bottom:12px">50</div>
+      <button class="manual-go" onclick="manualGo()">これで判定！</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="sc" id="s-ld">
+  <div class="ld-icon">🔬</div>
+  <div class="ld-text" id="ldText">解析中…</div>
+</div>
+
+<!-- RESULT -->
+<div class="sc scroll" id="s-result"></div>
+
+<script>
+// ========== DAILY SEED ==========
+const D=new Date(),DS=D.getFullYear()*1e4+(D.getMonth()+1)*100+D.getDate();
+let _s=DS;function dr(){_s=(_s*9301+49297)%233280;return _s/233280}
+
+// ========== SAKE DATABASE (from Fukushima DB) ==========
+const SAKE={
+brake:[ // ブレーキ酒 - これ以上いくな
+  {name:"名倉山 月弓（名倉山酒造）",note:"日本酒度-1 / きれいな甘さでブレーキ。優しく止めてくれる",temp:"冷酒"},
+  {name:"甲子山 純米吟醸（有賀醸造×西郷村）",note:"西郷村初の地酒。飲みやすさでクールダウン",temp:"冷酒"},
+  {name:"かをるやま（仁井田本家）",note:"お米の白ワイン。低アルコールで着地せよ",temp:"冷酒"},
+  {name:"山の井 純米（会津酒造）",note:"ALC14%。軽やかモダンでソフトランディング",temp:"冷酒"},
+  {name:"奈良萬 純米酒（夢心酒造）",note:"やわらかな旨味。胃に優しい万能ブレーキ",temp:"冷酒～常温"},
+  {name:"雪小町 純米酒（渡辺酒造本店）",note:"穏やかで飲みやすい。ここで止まれ",temp:"冷酒"},
+  {name:"榮川 特別純米酒（榮川酒造）",note:"磐梯山の水。まろやかブレーキ",temp:"冷酒"},
+  {name:"冩樂 純米酒（宮泉銘醸）",note:"フルーティーだけどキレがある。整える一杯",temp:"冷酒"},
+],
+calm:[ // 整える酒 - 落ち着け
+  {name:"大七 純米生酛（大七酒造）",note:"生酛の深いコク。燗で胃を温めて正気に戻れ",temp:"ぬる燗"},
+  {name:"伝承山廃純米 末廣（末廣酒造）",note:"山廃の複雑な旨味。燗で瞑想しろ",temp:"ぬる燗"},
+  {name:"会津中将 純米酒（鶴乃江酒造）",note:"燗酒コンテスト金賞。温かさで整え",temp:"燗"},
+  {name:"にいだしぜんしゅ 燗誂（仁井田本家）",note:"燗専用設計。温めて理性を取り戻せ",temp:"ぬる燗"},
+  {name:"国権 山廃純米（国権酒造）",note:"南会津の骨格。しっかり座れ",temp:"燗"},
+  {name:"花春 濃醇純米（花春酒造）",note:"燗酒コンテスト金賞。濃いめで整う",temp:"ぬる燗"},
+  {name:"廣戸川 特別純米（松崎酒造）",note:"キレ鋭い辛口。酔いにキレを入れろ",temp:"冷酒"},
+  {name:"弥右衛門 純米辛口（大和川酒造店）",note:"+8の辛口。甘い夢から覚ませ",temp:"冷酒"},
+],
+yolo:[ // 開き直り酒 - もう知らん
+  {name:"飛露喜 特別純米（廣木酒造本店）",note:"もう止まらないなら最高の酒で散れ",temp:"冷酒"},
+  {name:"冩樂 純米吟醸 おりがらみ（宮泉銘醸）",note:"シュワシュワで加速。もう知らん",temp:"冷酒"},
+  {name:"ロ万 純米吟醸（花泉酒造）",note:"もち米四段の華やかさ。最後の花火",temp:"冷酒"},
+  {name:"人気一 あわ 田んぼのシャンパーニュ（人気酒造）",note:"泡で飛べ。戻ってくるな",temp:"冷酒"},
+  {name:"にいだしぜんしゅ 純米原酒（仁井田本家）",note:"日本酒度-15。甘旨の沼に落ちろ",temp:"冷酒"},
+  {name:"飛露喜 純米吟醸 黒ラベル（廣木酒造本店）",note:"入手困難。出会えたなら飲むしかない",temp:"冷酒"},
+  {name:"蔵太鼓+10（喜多の華酒造場）",note:"超辛口+10。最後の一撃",temp:"冷酒"},
+  {name:"廣戸川 無濾過生原酒（松崎酒造）",note:"生原酒の暴力的旨味。開き直れ",temp:"冷酒"},
+]};
+
+// ========== RESULT TEXT ==========
+const LEVELS=[
+  {min:0,max:19,label:"素面",emoji:"😐",cls:"lv-sober",
+    status:["シラフすぎて逆に心配。\nなぜここにいる？","素面。つまらん人間の証拠。\nもう一杯いけ。","完全にシラフ。\n楽しみ方を知らない可能性。","検出不能。\n本当に飲んだのか？"],
+    prophecy:["明日：普通。つまらん。もう一回吹け。","明日：何事もなく朝を迎える。退屈な朝だ。","明日：二日酔いゼロ。人生の二日酔いは治らない。","明日：誰よりも早く起きる。虚しさも早い。"]
+  },
+  {min:20,max:39,label:"ほろ酔い",emoji:"😊",cls:"lv-tipsy",
+    status:["いい感じに入ってきた。\n今が一番楽しいゾーン。","ほろ酔い。\nこの状態が一番モテる。たぶん。","口が滑りやすくなってきた。\n秘密は今のうちに飲み込め。","いい塩梅。\nここで止まれる人間は偉い。"],
+    prophecy:["明日：気持ちいい朝。たぶん嘘。","明日：ギリギリ人間として機能する。","明日：LINEを見返して少し後悔する。","明日：「あんまり飲んでない」と嘘をつく。"]
+  },
+  {min:40,max:59,label:"上機嫌",emoji:"🥳",cls:"lv-happy",
+    status:["完全に上機嫌。\nこの顔、写真に撮られてるぞ。","絶好調。\nだが財布の中身は絶不調。","笑い上戸発動中。\n何を言っても面白い状態。","テンションMAX。\n明日のことは明日の自分に任せた。"],
+    prophecy:["明日：財布が軽い。記憶も軽い。","明日：スマホの写真フォルダが地獄。","明日：「昨日楽しかったね」のLINEが怖い。","明日：二日酔いと共に謎の筋肉痛。"]
+  },
+  {min:60,max:79,label:"危険域",emoji:"🫠",cls:"lv-danger",
+    status:["危険域突入。\n水を飲め。今すぐ。","目がすわってきた。\n周りの人、逃げて。","千鳥足レベル。\n帰りのタクシー、今のうちに呼べ。","言動に責任が持てない状態。\nスマホを預けろ。"],
+    prophecy:["明日：水と友達。既読が怖い。","明日：目覚ましが3回鳴っても起きない。","明日：「もう飲まない」と誓う。来週破る。","明日：頭痛薬を探す旅が始まる。"]
+  },
+  {min:80,max:100,label:"伝説域",emoji:"💀",cls:"lv-legend",
+    status:["伝説域。\nもはや人間ではない何かになっている。","限界突破。\nこの数値、記録に残していいか？","チーン。\n明日の自分に謝っておけ。","測定不能レベル。\n生きて帰れ。それだけでいい。"],
+    prophecy:["明日：3日酔い確定。チーン。","明日：存在しない。記憶も存在しない。","明日：胃と肝臓から訴状が届く。","明日：「昨日の俺、誰？」状態。"]
+  }
+];
+
+const KING_WORDS=[
+  "今夜、ここで止まれ。","お前はまだ立っている。それだけで王だ。","飲め。だが、帰り道を忘れるな。",
+  "酔いは嘘をつかない。お前の本音が出ている。","今夜の記憶を、明日の糧にしろ。",
+  "まだ飲むのか。…嫌いじゃない。","お前の肝臓が泣いている。聞こえるか。",
+  "一杯の酒に、千の言い訳は要らない。","止め時を知る者が、真の王だ。",
+  "チーン。だが、お前は生きている。それでいい。"
+];
+
+// ========== AUDIO STATE ==========
+let audioCtx, analyser, micStream, measuring=false;
+let volumes=[], startTime=0, animFrame=0;
+let canvas, ctx, cW, cH;
+
+// ========== SCREEN NAV ==========
+function show(id){document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));setTimeout(()=>document.getElementById(id).classList.add('on'),60)}
+
+// ========== START MEASURE ==========
+async function startMeasure(){
+  // Init canvas
+  canvas=document.getElementById('noiseCanvas');
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*2;canvas.height=rect.height*2;
+  ctx=canvas.getContext('2d');cW=canvas.width;cH=canvas.height;
+  ctx.scale(2,2);
+
+  show('s-measure');
+  document.getElementById('manualSlider').classList.remove('show');
+  document.getElementById('mTitle').textContent='🌬 フーッと吹いて！';
+  document.getElementById('mInst').textContent='スマホの下に向かって息を吹きかけてください';
+
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=512;
+    analyser.smoothingTimeConstant=0.3;
+    src.connect(analyser);
+
+    volumes=[];
+    measuring=true;
+    startTime=performance.now();
+    measureLoop();
+  }catch(e){
+    // Mic failed - show manual
+    document.getElementById('mTitle').textContent='🎤 マイクが使えません';
+    document.getElementById('mInst').textContent='手動モードで測定できます';
+    document.getElementById('manualSlider').classList.add('show');
+  }
+}
+
+function measureLoop(){
+  if(!measuring)return;
+  const elapsed=(performance.now()-startTime)/1000;
+  const remain=Math.max(0,2.0-elapsed);
+
+  // Get volume
+  const data=new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+  let sum=0;for(let i=0;i<data.length;i++)sum+=data[i]*data[i];
+  const rms=Math.sqrt(sum/data.length);
+  const vol=Math.min(100,rms/1.2);
+  volumes.push(vol);
+
+  // Update gauge
+  const avg=volumes.reduce((a,b)=>a+b,0)/volumes.length;
+  const displayVal=Math.min(100,Math.round(avg*1.2+Math.random()*8));
+  updateGauge(displayVal);
+
+  // Update timer
+  document.getElementById('timerText').textContent=`残り ${remain.toFixed(1)} 秒`;
+
+  // Draw noise
+  drawNoise(vol,data);
+
+  if(elapsed>=2.0){
+    measuring=false;
+    stopMic();
+    finishMeasure();
+  }else{
+    animFrame=requestAnimationFrame(measureLoop);
+  }
+}
+
+function updateGauge(val){
+  const clamped=Math.max(0,Math.min(100,val));
+  document.getElementById('gaugeNum').textContent=Math.round(clamped);
+  document.getElementById('gaugeFill').style.width=clamped+'%';
+  // Color
+  let clr;
+  if(clamped<20)clr='var(--cyan)';
+  else if(clamped<40)clr='var(--green)';
+  else if(clamped<60)clr='var(--yellow)';
+  else if(clamped<80)clr='var(--orange)';
+  else clr='var(--red3)';
+  document.getElementById('gaugeFill').style.background=`linear-gradient(90deg,${clr},${clr}dd)`;
+  document.getElementById('gaugeNum').style.color=clr;
+}
+
+function drawNoise(vol,data){
+  const w=cW/2,h=cH/2;
+  ctx.fillStyle='rgba(5,5,8,0.3)';
+  ctx.fillRect(0,0,w,h);
+
+  // Frequency bars
+  const barW=w/data.length*2;
+  for(let i=0;i<data.length;i+=2){
+    const v=data[i]/255;
+    const barH=v*h*0.8;
+    const hue=120-v*120;
+    ctx.fillStyle=`hsla(${hue},70%,50%,${0.3+v*0.5})`;
+    ctx.fillRect(i/2*barW,h-barH,barW-1,barH);
+  }
+
+  // Waveform overlay
+  ctx.beginPath();
+  ctx.strokeStyle=`rgba(201,168,76,${0.2+vol/200})`;
+  ctx.lineWidth=1.5;
+  for(let x=0;x<w;x++){
+    const idx=Math.floor(x/w*data.length);
+    const y=h/2+(data[idx]/255-0.5)*h*0.6+Math.sin(x*0.05+performance.now()*0.003)*vol*0.15;
+    x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+function stopMic(){
+  if(micStream)micStream.getTracks().forEach(t=>t.stop());
+  if(audioCtx)audioCtx.close().catch(()=>{});
+  cancelAnimationFrame(animFrame);
+}
+
+function cancelMeasure(){
+  measuring=false;
+  stopMic();
+  show('s-intro');
+}
+
+// ========== MANUAL MODE ==========
+function showManual(){document.getElementById('manualSlider').classList.add('show')}
+function updateManualLabel(){document.getElementById('manualVal').textContent=document.getElementById('manualRange').value}
+function manualGo(){
+  const v=parseInt(document.getElementById('manualRange').value);
+  doResult(v);
+}
+
+// ========== FINISH MEASURE ==========
+function finishMeasure(){
+  if(volumes.length===0){doResult(50);return}
+  const avg=volumes.reduce((a,b)=>a+b,0)/volumes.length;
+  const variance=volumes.reduce((a,b)=>a+(b-avg)**2,0)/volumes.length;
+
+  // Score calculation (entertainment, not science)
+  let base=Math.min(80,avg*1.1);
+  let vBonus=Math.min(15,Math.sqrt(variance)*0.8);
+  let randomShift=(Math.random()-0.5)*20;
+  let score=Math.round(base+vBonus+randomShift);
+  score=Math.max(0,Math.min(100,score));
+
+  doResult(score);
+}
+
+// ========== RESULT ==========
+function doResult(score){
+  // Show loading
+  show('s-ld');
+  const ldTexts=["呼気を解析中…","アルコール成分を検出…","酔い度を算出中…","判定完了。"];
+  let li=0;
+  const ldIv=setInterval(()=>{li++;if(li<ldTexts.length)document.getElementById('ldText').textContent=ldTexts[li]},250);
+
+  setTimeout(()=>{
+    clearInterval(ldIv);
+    renderResult(score);
+  },1200);
+}
+
+function renderResult(score){
+  const level=LEVELS.find(l=>score>=l.min&&score<=l.max)||LEVELS[0];
+  const status=level.status[Math.floor(Math.random()*level.status.length)];
+  const prophecy=level.prophecy[Math.floor(Math.random()*level.prophecy.length)];
+
+  // Pick sake
+  const brakeSake=SAKE.brake[Math.floor(Math.random()*SAKE.brake.length)];
+  const calmSake=SAKE.calm[Math.floor(Math.random()*SAKE.calm.length)];
+  const yoloSake=SAKE.yolo[Math.floor(Math.random()*SAKE.yolo.length)];
+
+  // King (10% chance)
+  const showKing=Math.random()<0.15;
+  const kingWord=KING_WORDS[Math.floor(Math.random()*KING_WORDS.length)];
+
+  const el=document.getElementById('s-result');
+  el.innerHTML=`
+    <div class="res-emoji fi">${level.emoji}</div>
+    <div class="res-label ${level.cls} fi d1">${level.label}</div>
+    <div class="res-num ${level.cls} fi d2">${score}</div>
+    <div class="res-unit fi d2">ベロ</div>
+
+    <div class="res-status fi d3">
+      <div class="res-status-title">▶ 今夜のあなた</div>
+      <div class="res-status-text">${status.replace(/\n/g,'<br>')}</div>
+    </div>
+
+    <div class="res-prophecy fi d4">
+      <div class="res-prophecy-title">🔮 明日の予言</div>
+      <div class="res-prophecy-text">${prophecy}</div>
+    </div>
+
+    <div class="sake-box fi d5">
+      <div class="sake-title">🍶 今夜のおすすめ日本酒</div>
+      <div class="sake-card">
+        <div class="sake-role brake">🛑 ブレーキ酒 ― これ以上いくな</div>
+        <div class="sake-name">${brakeSake.name}</div>
+        <div class="sake-note">${brakeSake.note}｜${brakeSake.temp}</div>
+      </div>
+      <div class="sake-card">
+        <div class="sake-role calm">🍵 整える酒 ― 落ち着け</div>
+        <div class="sake-name">${calmSake.name}</div>
+        <div class="sake-note">${calmSake.note}｜${calmSake.temp}</div>
+      </div>
+      <div class="sake-card">
+        <div class="sake-role yolo">🔥 開き直り酒 ― もう知らん</div>
+        <div class="sake-name">${yoloSake.name}</div>
+        <div class="sake-note">${yoloSake.note}｜${yoloSake.temp}</div>
+      </div>
+    </div>
+
+    <div class="king-box fi d6 ${showKing?'show':''}">
+      <div class="king-label">世界王の判定</div>
+      <div class="king-text">「${kingWord}」</div>
+    </div>
+
+    <button class="retry-btn fi d7" onclick="retry()">🌬 もう一回測る</button>
+    <div class="ft fi d8">Presented by 世界王<br>「すべての人は、自分の夜の王である。」</div>
+  `;
+
+  show('s-result');
+}
+
+function retry(){
+  document.getElementById('s-result').scrollTo(0,0);
+  show('s-intro');
+}
+</script>
+</body>
+</html>
