@@ -33,16 +33,28 @@ body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml
 .mode-title{font-family:'Zen Old Mincho',serif;font-size:clamp(24px,6vw,32px);font-weight:900;text-align:center;margin-bottom:8px}
 .mode-sub{font-size:clamp(13px,3.2vw,16px);color:var(--gold2);text-align:center;margin-bottom:24px;letter-spacing:0.1em}
 .mode-cards{display:flex;flex-direction:column;gap:12px;width:min(380px,88vw)}
-.mode-card{width:100%;padding:18px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.15);border-radius:8px;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;gap:14px;text-align:left}
+.mode-card{width:100%;padding:18px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.15);border-radius:8px;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;gap:14px;text-align:left;position:relative}
 .mode-card:active{transform:scale(0.97);background:rgba(201,168,76,0.08);border-color:var(--gold)}
+.mode-card.locked{border-color:rgba(201,168,76,0.08)}
 .mode-emoji{font-size:clamp(36px,9vw,48px);flex-shrink:0}
 .mode-info{flex:1}
 .mode-name{font-family:'Zen Old Mincho',serif;font-size:clamp(18px,4.5vw,24px);font-weight:700;margin-bottom:4px}
 .mode-desc{font-size:clamp(12px,3vw,14px);color:var(--grey);line-height:1.5}
 .mode-tag{display:inline-block;font-size:clamp(10px,2.5vw,11px);padding:2px 8px;border-radius:10px;margin-top:4px;font-weight:700}
+.tag-free{background:rgba(48,160,80,0.15);color:var(--green)}
 .tag-sing{background:rgba(208,96,160,0.15);color:var(--pink)}
 .tag-sexy{background:rgba(208,48,48,0.15);color:var(--red3)}
 .tag-long{background:rgba(64,192,208,0.15);color:var(--cyan)}
+.tag-premium{background:rgba(201,168,76,0.2);color:var(--gold3);margin-left:4px}
+.lock-badge{position:absolute;top:10px;right:12px;font-size:clamp(10px,2.5vw,12px);color:var(--gold);background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);border-radius:12px;padding:2px 10px;font-weight:700;letter-spacing:0.05em}
+.lock-badge.unlocked{color:var(--green);background:rgba(48,160,80,0.12);border-color:rgba(48,160,80,0.25)}
+
+.manual-box{width:min(380px,90vw);text-align:center;margin-top:16px}
+.manual-link{font-size:13px;color:var(--gold2);text-decoration:underline;cursor:pointer}
+
+/* PAID UNLOCK TOAST */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(48,160,80,0.95),rgba(30,120,60,0.95));color:#fff;padding:14px 24px;border-radius:10px;font-size:clamp(14px,3.5vw,17px);font-weight:700;z-index:200;opacity:0;transition:opacity 0.4s,transform 0.4s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.3);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* COUNTDOWN */
 .cd-num{font-family:'Zen Old Mincho',serif;font-size:clamp(120px,30vw,180px);font-weight:900;color:var(--gold);text-shadow:0 0 60px rgba(201,168,76,0.4);opacity:0;transform:scale(2)}
@@ -63,10 +75,8 @@ body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml
 @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 .timer-text{font-size:clamp(14px,3.5vw,17px);color:var(--grey);text-align:center;margin-bottom:14px}
 .stop-btn{padding:12px 36px;background:rgba(100,100,120,0.2);border:1px solid var(--grey);border-radius:6px;color:var(--grey);font-size:16px;cursor:pointer}
-.manual-box{width:min(380px,90vw);text-align:center;margin-top:14px}
-.manual-link{font-size:13px;color:var(--gold2);text-decoration:underline;cursor:pointer}
-.manual-slider-wrap{margin-top:12px;display:none}
-.manual-slider-wrap.show{display:block}
+
+/* MANUAL */
 input[type=range]{width:100%;height:40px;-webkit-appearance:none;background:transparent;margin-bottom:12px}
 input[type=range]::-webkit-slider-runnable-track{height:8px;background:linear-gradient(90deg,var(--cyan),var(--green),var(--yellow),var(--orange),var(--red3));border-radius:4px}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;height:36px;background:var(--gold);border-radius:50%;margin-top:-14px}
@@ -145,6 +155,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;heigh
 <body>
 <div class="res-flash" id="flash"></div>
 <div class="confetti-box" id="confettiBox"></div>
+<div class="toast" id="toast"></div>
 
 <div class="sc on" id="s-intro">
   <div class="intro-icon">🍺</div>
@@ -161,29 +172,31 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;heigh
   <div class="mode-title">🎭 モードを選べ</div>
   <div class="mode-sub">覚悟はいいか？</div>
   <div class="mode-cards">
-    <div class="mode-card" onclick="selectMode('sing')">
-      <div class="mode-emoji">🎤</div>
-      <div class="mode-info">
-        <div class="mode-name">歌って測定</div>
-        <div class="mode-desc">歌に自信ある方ｗ<br>10秒間、本気で歌え！</div>
-        <div class="mode-tag tag-sing">難易度★★★</div>
-      </div>
-    </div>
     <div class="mode-card" onclick="selectMode('sexy')">
       <div class="mode-emoji">💋</div>
       <div class="mode-info">
         <div class="mode-name">色っぽく吹く</div>
         <div class="mode-desc">3秒間、セクシーに息を…<br>フゥ〜〜ッ♡</div>
-        <div class="mode-tag tag-sexy">恥ずかしさ★★★</div>
+        <div><span class="mode-tag tag-free">🆓 無料</span><span class="mode-tag tag-sexy">恥ずかしさ★★★</span></div>
       </div>
     </div>
-    <div class="mode-card" onclick="selectMode('long')">
+    <div class="mode-card" id="card-sing" onclick="selectMode('sing')">
+      <div class="mode-emoji">🎤</div>
+      <div class="mode-info">
+        <div class="mode-name">歌って測定</div>
+        <div class="mode-desc">歌に自信ある方ｗ<br>10秒間、本気で歌え！</div>
+        <div><span class="mode-tag tag-sing">難易度★★★</span><span class="mode-tag tag-premium" id="tagSing">👑 プレミアム</span></div>
+      </div>
+      <div class="lock-badge" id="lockSing">🔒 ¥300</div>
+    </div>
+    <div class="mode-card" id="card-long" onclick="selectMode('long')">
       <div class="mode-emoji">🫁</div>
       <div class="mode-info">
         <div class="mode-name">息ロングレンジ</div>
         <div class="mode-desc">息切れするまで吹き続けろ！<br>最大20秒。肺活量勝負！</div>
-        <div class="mode-tag tag-long">体力★★★</div>
+        <div><span class="mode-tag tag-long">体力★★★</span><span class="mode-tag tag-premium" id="tagLong">👑 プレミアム</span></div>
       </div>
+      <div class="lock-badge" id="lockLong">🔒 ¥300</div>
     </div>
   </div>
   <div class="manual-box" style="margin-top:16px">
@@ -207,7 +220,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;heigh
   <button class="stop-btn" onclick="stopEarly()">もうムリ！</button>
 </div>
 
-<!-- MANUAL -->
 <div class="sc" id="s-manual">
   <div class="mode-title">🎚 手動モード</div>
   <div style="font-size:16px;color:var(--grey);margin-bottom:16px">今の酔い具合を自己申告せよ</div>
@@ -228,7 +240,45 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:36px;heigh
 <div class="sc scroll" id="s-result"></div>
 
 <script>
-// === DB ===
+// ============ STRIPE PAYMENT ============
+const PAYMENT_URL = 'https://buy.stripe.com/bJebJ08ajfF2dJAfSyb7y01';
+
+function isPaid(){
+  return localStorage.getItem('bero_premium')==='1';
+}
+
+function checkPaidParam(){
+  const p = new URLSearchParams(window.location.search);
+  if(p.get('paid')==='1'){
+    localStorage.setItem('bero_premium','1');
+    // Clean URL
+    window.history.replaceState({},'',window.location.pathname);
+    showToast('🎉 プレミアム解放！全モード使えます！');
+  }
+}
+
+function updateModeUI(){
+  const paid = isPaid();
+  if(paid){
+    document.getElementById('lockSing').textContent='✅ 解放済';
+    document.getElementById('lockSing').classList.add('unlocked');
+    document.getElementById('lockLong').textContent='✅ 解放済';
+    document.getElementById('lockLong').classList.add('unlocked');
+    document.getElementById('tagSing').style.display='none';
+    document.getElementById('tagLong').style.display='none';
+  }
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// Init on load
+checkPaidParam();
+// ========================================
+
 const SAKE={
 brake:[
   {name:"名倉山 月弓（名倉山酒造）",note:"きれいな甘さでブレーキ",temp:"冷酒"},
@@ -267,52 +317,46 @@ const LEVELS=[
   {min:80,max:100,label:"伝説域",emoji:"💀",cls:"lv4",clr:"var(--red3)"}
 ];
 
-// MODE-SPECIFIC STATUS + PROPHECY
 const TEXTS={
 sing:{
   status:[
-    ["シラフすぎて音程が正確。\nつまらん。酒を飲め。","声が安定しすぎ。\nカラオケの採点マシンかお前は。"],
-    ["いい感じに声が揺れ始めた。\nこれがほろ酔いハーモニー。","音程がちょっとズレてきた。\nでもそれが味ってもんよ。"],
-    ["完全にノリノリ。\n歌詞は5割くらい適当だろ。","もう何の曲かわからんが\n楽しそうでなにより。","声量だけは立派。\n近所迷惑レベル。"],
-    ["歌じゃなくて叫びになってる。\nご近所への配慮ゼロ。","音程という概念が消滅。\n自由すぎる。","もはや呪文。\n何語？"],
-    ["伝説のリサイタル。\n録音されてないことを祈れ。","これを歌と呼んでいいのか\n学会で議論が必要。","チーン。\n魂の叫びだった。"]
-  ],
-  prophecy:[
-    ["明日：のどが枯れている。しゃべれない。","明日：「昨日歌ってた動画」がグループLINEに。"],
-    ["明日：脳内でサビがリピートし続ける。","明日：カラオケの採点を思い出して赤面。"],
-    ["明日：声がガラガラ。風邪だと嘘をつく。","明日：歌った曲を検索して「こんな歌詞だったのか」と驚く。"],
-    ["明日：同僚に「昨日すごかったね」と言われる。","明日：のど飴を10個消費する。"],
+    ["シラフすぎて音程が正確。つまらん。","声が安定しすぎ。カラオケの採点マシンか。"],
+    ["声が揺れ始めた。ほろ酔いハーモニー。","音程がズレてきた。でもそれが味。"],
+    ["完全にノリノリ。歌詞5割適当だろ。","何の曲かわからんが楽しそう。","声量だけは立派。近所迷惑。"],
+    ["歌じゃなくて叫び。配慮ゼロ。","音程という概念が消滅。自由すぎる。","もはや呪文。何語？"],
+    ["伝説のリサイタル。録音されてないことを祈れ。","これを歌と呼んでいいのか学会で議論が必要。","チーン。魂の叫びだった。"]
+  ],prophecy:[
+    ["明日：のどが枯れている。","明日：歌ってた動画がグループLINEに。"],
+    ["明日：脳内でサビがリピート。","明日：カラオケの採点を思い出して赤面。"],
+    ["明日：声がガラガラ。風邪だと嘘つく。","明日：歌った曲を検索して驚く。"],
+    ["明日：同僚に「昨日すごかったね」と言われる。","明日：のど飴を10個消費。"],
     ["明日：近隣住民から手紙が届く。","明日：3日間、声が出ない。チーン。"]
   ]
-},
-sexy:{
+},sexy:{
   status:[
-    ["色気ゼロ。\n扇風機の方がセクシー。","ただの息。\n何も感じない。もっと酔え。"],
-    ["ちょっとだけ色っぽかった。\n…気のせいかも。","ほんのり色気が出てきた。\nアルコールの力は偉大。"],
-    ["おっ、なかなかセクシー。\n周りの人が二度見してるぞ。","色気ダダ漏れ。\nフェロモン検出。","これは…\nちょっとドキッとした。"],
-    ["危険な色気。\n半径3メートル以内注意。","セクシーすぎて通報レベル。\n自制しろ。","もうこれ事件。\n色気の暴力。"],
-    ["伝説のセクシー。\n空気が変わった。","色気で人を倒せるレベル。\n武器だろこれ。","チーン。\n色っぽすぎて成仏した。"]
-  ],
-  prophecy:[
-    ["明日：何事もなかったかのように過ごす。","明日：鏡を見て「あれ？普通だな」と思う。"],
-    ["明日：誰かの夢に出る。たぶん。","明日：LINEのスタンプが急にハートだらけ。"],
-    ["明日：「昨日の色っぽかったよね」と言われる。","明日：フェロモンの残り香で周りがザワつく。"],
+    ["色気ゼロ。扇風機の方がセクシー。","ただの息。何も感じない。もっと酔え。"],
+    ["ちょっとだけ色っぽかった。…気のせいかも。","ほんのり色気。アルコールの力は偉大。"],
+    ["なかなかセクシー。周りが二度見してるぞ。","色気ダダ漏れ。フェロモン検出。","ちょっとドキッとした。"],
+    ["危険な色気。半径3m注意。","セクシーすぎて通報レベル。自制しろ。","もうこれ事件。色気の暴力。"],
+    ["伝説のセクシー。空気が変わった。","色気で人を倒せるレベル。武器だろ。","チーン。色っぽすぎて成仏した。"]
+  ],prophecy:[
+    ["明日：何事もなかったかのように過ごす。","明日：鏡を見て「普通だな」と思う。"],
+    ["明日：誰かの夢に出る。たぶん。","明日：LINEスタンプが急にハートだらけ。"],
+    ["明日：「昨日色っぽかったね」と言われる。","明日：フェロモンの残り香でザワつく。"],
     ["明日：目撃証言が複数。言い逃れ不可。","明日：「あの息の動画」が仲間内で出回る。"],
     ["明日：伝説として語り継がれる。","明日：色気の後遺症で3日モテる。チーン。"]
   ]
-},
-long:{
+},long:{
   status:[
-    ["息短っ。\n肺活量が金魚レベル。","もう終わり？\n始まったかどうかも怪しい。"],
-    ["まあまあの肺活量。\n人間として平均的。","そこそこ持った。\n可もなく不可もなく。"],
-    ["なかなかの持久力。\n酔ってる割にやるじゃん。","肺が強い。\n吹奏楽部だったろ？","長い！\nでも顔真っ赤だぞ。"],
-    ["バケモノ級の肺活量。\nイルカかお前は。","すごい…\n酸欠で倒れるなよ？","もう十分。\n生きてるか？"],
-    ["人類の限界を超えた。\n呼吸のオリンピアン。","伝説の肺。\n医学的に調べさせてくれ。","チーン。\n息の代わりに魂が出た。"]
-  ],
-  prophecy:[
+    ["息短っ。肺活量が金魚レベル。","もう終わり？始まったかどうかも怪しい。"],
+    ["まあまあの肺活量。人間として平均的。","そこそこ持った。可もなく不可もなく。"],
+    ["なかなかの持久力。酔ってる割にやるな。","肺が強い。吹奏楽部だったろ？","長い！でも顔真っ赤だぞ。"],
+    ["バケモノ級の肺活量。イルカかお前は。","すごい…酸欠で倒れるなよ？","もう十分。生きてるか？"],
+    ["人類の限界を超えた。呼吸のオリンピアン。","伝説の肺。医学的に調べさせてくれ。","チーン。息の代わりに魂が出た。"]
+  ],prophecy:[
     ["明日：肺が何事もなかったかのように動く。","明日：息の短さを反省して深呼吸する。"],
     ["明日：なんとなく胸のあたりが疲れてる。","明日：エレベーターで息切れする。"],
-    ["明日：肺活量に自信がつく。根拠なし。","明日：「昨日すごかったよね」と褒められる。肺を。"],
+    ["明日：肺活量に自信がつく。根拠なし。","明日：褒められる。肺を。"],
     ["明日：深呼吸するだけで周りがビビる。","明日：肺のMRI撮りたくなる。"],
     ["明日：酸素ボンベが届く。","明日：肺学会から招待状が届く。チーン。"]
   ]
@@ -327,8 +371,7 @@ sing:[
   {emoji:"🔊",text:"うるさい！\n…褒めてます！"},
   {emoji:"👏",text:"ブラボー！\n…何の曲？"},
   {emoji:"🎼",text:"新ジャンル誕生！\n酔拳ミュージック！"},
-],
-sexy:[
+],sexy:[
   {emoji:"💋",text:"おぉ…\nちょっとドキッとした"},
   {emoji:"🫦",text:"なかなか\nセクシーじゃん…！"},
   {emoji:"💕",text:"色気検出！\nフェロモンセンサー反応！"},
@@ -336,8 +379,7 @@ sexy:[
   {emoji:"😳",text:"えっ…\nそれはちょっと…反則…"},
   {emoji:"✨",text:"キラキラしてる！\nお前の息、輝いてる！"},
   {emoji:"🫡",text:"了解！\nセクシーデータ受信！"},
-],
-long:[
+],long:[
   {emoji:"🫁",text:"おー！\nまだ続いてる！"},
   {emoji:"💪",text:"肺活量モンスター！\nまだいける！"},
   {emoji:"😤",text:"すごい！\n顔真っ赤だぞ！"},
@@ -354,23 +396,33 @@ const KING=[
   "よくやった。だが二度とやるな。","今夜のお前は、ちょっと面白い。"
 ];
 
-// === STATE ===
 let mode='',audioCtx,analyser,micStream,measuring=false;
 let volumes=[],startTime=0,animFrame=0,canvas,ctx,cW,cH;
 let measureDuration=2;
 
-function show(id){document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));setTimeout(()=>document.getElementById(id).classList.add('on'),60)}
+function show(id){
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  setTimeout(()=>{
+    document.getElementById(id).classList.add('on');
+    if(id==='s-mode') updateModeUI();
+  },60);
+}
 function rp(a){return a[Math.floor(Math.random()*a.length)]}
 
 // === MODE SELECT ===
 function selectMode(m){
   if(m==='manual'){mode='long';show('s-manual');return}
+  // Check premium
+  if((m==='sing'||m==='long') && !isPaid()){
+    // Redirect to Stripe
+    window.location.href = PAYMENT_URL;
+    return;
+  }
   mode=m;
   measureDuration=m==='sing'?10:m==='sexy'?3:20;
   beginCountdown();
 }
 
-// === COUNTDOWN ===
 function beginCountdown(){
   show('s-cd');
   const subs={sing:'歌の準備はいいか…？',sexy:'心の準備はいいか…？',long:'深呼吸しておけ…'};
@@ -379,14 +431,12 @@ function beginCountdown(){
   let c=3;el.textContent=c;el.className='cd-num';void el.offsetWidth;el.classList.add('pop');
   const iv=setInterval(()=>{c--;
     if(c>0){el.className='cd-num';el.textContent=c;void el.offsetWidth;el.classList.add('pop')}
-    else{clearInterval(iv);
-      const starts={sing:'🎤',sexy:'💋',long:'💨'};
+    else{clearInterval(iv);const starts={sing:'🎤',sexy:'💋',long:'💨'};
       el.className='cd-num';el.textContent=starts[mode]||'💨';void el.offsetWidth;el.classList.add('pop');
       setTimeout(()=>startMeasure(),400)}
   },900);
 }
 
-// === MEASURE ===
 async function startMeasure(){
   canvas=document.getElementById('noiseCanvas');
   const r=canvas.getBoundingClientRect();canvas.width=r.width*2;canvas.height=r.height*2;
@@ -410,8 +460,6 @@ async function startMeasure(){
 function mLoop(){
   if(!measuring)return;
   const elapsed=(performance.now()-startTime)/1000;
-  let remain=Math.max(0,measureDuration-elapsed);
-  // Long mode: auto-stop if silence for 1s
   const data=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(data);
   let sum=0;for(let i=0;i<data.length;i++)sum+=data[i]*data[i];
   const rms=Math.sqrt(sum/data.length);const vol=Math.min(100,rms/1.2);
@@ -420,16 +468,14 @@ function mLoop(){
   updateGauge(Math.min(100,Math.round(avg*1.1+Math.random()*6)));
   if(mode==='long'){
     document.getElementById('timerText').textContent=`${elapsed.toFixed(1)} 秒経過`;
-    // Auto-stop if last 30 frames are silent
     if(volumes.length>30){const tail=volumes.slice(-30);const tavg=tail.reduce((a,b)=>a+b,0)/30;
       if(tavg<3&&elapsed>2){measuring=false;stopMic();finishMeasure();return}}
     if(elapsed>=20){measuring=false;stopMic();finishMeasure();return}
   }else{
-    document.getElementById('timerText').textContent=`残り ${remain.toFixed(1)} 秒`;
+    document.getElementById('timerText').textContent=`残り ${Math.max(0,measureDuration-elapsed).toFixed(1)} 秒`;
     if(elapsed>=measureDuration){measuring=false;stopMic();finishMeasure();return}
   }
-  drawNoise(vol,data);
-  animFrame=requestAnimationFrame(mLoop);
+  drawNoise(vol,data);animFrame=requestAnimationFrame(mLoop);
 }
 
 function updateGauge(v){
@@ -461,16 +507,14 @@ function finishMeasure(){
   const avg=volumes.reduce((a,b)=>a+b,0)/volumes.length;
   const vari=volumes.reduce((a,b)=>a+(b-avg)**2,0)/volumes.length;
   let base=Math.min(80,avg*1.1);
-  // Long mode bonus for duration
   if(mode==='long'){const dur=(performance.now()-startTime)/1000;base+=Math.min(20,dur*1.5)}
   let score=Math.round(base+Math.min(15,Math.sqrt(vari)*0.8)+(Math.random()-0.5)*18);
   doAnalyze(Math.max(0,Math.min(100,score)));
 }
 
-// === ANALYZE ===
 function doAnalyze(score){
   show('s-analyze');
-  const yList=YOISHO_MODE[mode]||YOISHO_MODE.long;
+  const yList=YOISHO_MODE[mode]||YOISHO_MODE.sexy;
   const picks=[];const used=new Set();
   while(picks.length<3){const i=Math.floor(Math.random()*yList.length);if(!used.has(i)){used.add(i);picks.push(yList[i])}}
   let yi=0;
@@ -482,7 +526,6 @@ function doAnalyze(score){
   setTimeout(()=>{clearInterval(iv);renderResult(score)},3200);
 }
 
-// === CONFETTI & FLASH ===
 function fireConfetti(){
   const box=document.getElementById('confettiBox');box.innerHTML='';
   const colors=['#e8c960','#e05028','#40c0d0','#30a050','#e0c030','#d060a0','#ff4040','#8040c0','#fff'];
@@ -491,20 +534,16 @@ function fireConfetti(){
     box.appendChild(c)}setTimeout(()=>box.innerHTML='',5000)}
 function flashScreen(){const f=document.getElementById('flash');f.classList.add('bang');setTimeout(()=>{f.classList.remove('bang');f.style.opacity='0'},80)}
 
-// === RESULT ===
 function renderResult(score){
   const li=score<20?0:score<40?1:score<60?2:score<80?3:4;
   const lv=LEVELS[li];
-  const modeTexts=TEXTS[mode]||TEXTS.long;
+  const modeTexts=TEXTS[mode]||TEXTS.sexy;
   const status=rp(modeTexts.status[li]);
   const prophecy=rp(modeTexts.prophecy[li]);
   const bs=rp(SAKE.brake),cs=rp(SAKE.calm),ys=rp(SAKE.yolo);
   const showK=Math.random()<0.2;const kw=rp(KING);
-
   const badges={sing:'badge-sing',sexy:'badge-sexy',long:'badge-long'};
   const badgeNames={sing:'🎤 歌って測定',sexy:'💋 色っぽく測定',long:'🫁 ロングレンジ'};
-  const badgeCls=badges[mode]||'badge-long';
-  const badgeName=badgeNames[mode]||'🫁 ロングレンジ';
 
   document.getElementById('s-result').innerHTML=`
     <div class="res-emoji2 dramatic">${lv.emoji}</div>
@@ -514,7 +553,7 @@ function renderResult(score){
       <div class="res-num ${lv.cls} countUp" id="resN" data-target="${score}">0</div>
     </div>
     <div class="res-unit fadeIn">ベロ</div>
-    <div class="res-mode-badge ${badgeCls} fadeIn">${badgeName}</div>
+    <div class="res-mode-badge ${badges[mode]||'badge-sexy'} fadeIn">${badgeNames[mode]||'💋'}</div>
     <div class="res-box fi d4">
       <div class="res-box-title">▶ 今夜のあなた</div>
       <div class="res-box-text">${status.replace(/\n/g,'<br>')}</div>
